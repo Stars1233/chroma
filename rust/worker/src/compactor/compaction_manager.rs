@@ -1,20 +1,21 @@
 use super::scheduler::Scheduler;
 use super::scheduler_policy::LasCompactionTimeSchedulerPolicy;
+use super::OneOffCompactionMessage;
 use crate::compactor::types::CompactionJob;
-use crate::compactor::types::ScheduleMessage;
+use crate::compactor::types::ScheduledCompactionMessage;
 use crate::config::CompactionServiceConfig;
 use crate::execution::orchestration::CompactOrchestrator;
 use crate::execution::orchestration::CompactionResponse;
-use crate::log::log::Log;
-use crate::memberlist::Memberlist;
-use crate::sysdb;
-use crate::sysdb::sysdb::SysDb;
 use async_trait::async_trait;
 use chroma_blockstore::provider::BlockfileProvider;
+use chroma_config::assignment;
 use chroma_config::Configurable;
 use chroma_error::{ChromaError, ErrorCodes};
 use chroma_index::hnsw_provider::HnswIndexProvider;
+use chroma_log::log::Log;
+use chroma_memberlist::memberlist_provider::Memberlist;
 use chroma_storage::Storage;
+use chroma_sysdb::SysDb;
 use chroma_system::Dispatcher;
 use chroma_system::Orchestrator;
 use chroma_system::{Component, ComponentContext, ComponentHandle, Handler, System};
@@ -108,7 +109,7 @@ impl CompactionManager {
         let dispatcher = match self.dispatcher {
             Some(ref dispatcher) => dispatcher.clone(),
             None => {
-                println!("No dispatcher found");
+                tracing::error!("No dispatcher found");
                 return Err(Box::new(CompactionError::FailedToCompact));
             }
         };
@@ -140,43 +141,42 @@ impl CompactionManager {
                 }
             }
             None => {
-                println!("No system found");
+                tracing::error!("No system found");
                 return Err(Box::new(CompactionError::FailedToCompact));
             }
         };
     }
 
-    // TODO: make the return type more informative
     #[instrument(name = "CompactionManager::compact_batch")]
-    pub(crate) async fn compact_batch(
-        &mut self,
-        compacted: &mut Vec<CollectionUuid>,
-    ) -> (u32, u32) {
+    pub(crate) async fn compact_batch(&mut self) -> Vec<CollectionUuid> {
         self.scheduler.schedule().await;
-        let mut jobs = FuturesUnordered::new();
-        for job in self.scheduler.get_jobs() {
-            let instrumented_span = span!(parent: None, tracing::Level::INFO, "Compacting job", collection_id = ?job.collection_id);
-            instrumented_span.follows_from(Span::current());
-            jobs.push(self.compact(job).instrument(instrumented_span));
-        }
-        println!("Compacting {} jobs", jobs.len());
-        tracing::info!("Compacting {} jobs", jobs.len());
-        let mut num_completed_jobs = 0;
-        let mut num_failed_jobs = 0;
-        while let Some(job) = jobs.next().await {
-            match job {
-                Ok(result) => {
-                    println!("Compaction completed: {:?}", result);
-                    compacted.push(result.compaction_job.collection_id);
-                    num_completed_jobs += 1;
+        let job_futures = self
+            .scheduler
+            .get_jobs()
+            .map(|job| {
+                let instrumented_span = span!(parent: None, tracing::Level::INFO, "Compacting job", collection_id = ?job.collection_id);
+                instrumented_span.follows_from(Span::current());
+                self.compact(job).instrument(instrumented_span)
+            })
+            .collect::<FuturesUnordered<_>>();
+
+        tracing::info!("Running {} compaction jobs", job_futures.len());
+
+        job_futures
+            .filter_map(|result| async move {
+                match result {
+                    Ok(response) => {
+                        tracing::info!("Compaction completed: {response:?}");
+                        Some(response.compaction_job.collection_id)
+                    }
+                    Err(err) => {
+                        tracing::error!("Compaction failed {err}");
+                        None
+                    }
                 }
-                Err(e) => {
-                    println!("Compaction failed: {:?}", e);
-                    num_failed_jobs += 1;
-                }
-            }
-        }
-        (num_completed_jobs, num_failed_jobs)
+            })
+            .collect()
+            .await
     }
 
     pub(crate) fn set_dispatcher(&mut self, dispatcher: ComponentHandle<Dispatcher>) {
@@ -194,14 +194,14 @@ impl Configurable<CompactionServiceConfig> for CompactionManager {
         config: &crate::config::CompactionServiceConfig,
     ) -> Result<Self, Box<dyn ChromaError>> {
         let log_config = &config.log;
-        let log = match crate::log::from_config(log_config).await {
+        let log = match chroma_log::from_config(log_config).await {
             Ok(log) => log,
             Err(err) => {
                 return Err(err);
             }
         };
         let sysdb_config = &config.sysdb;
-        let sysdb = match sysdb::from_config(sysdb_config).await {
+        let sysdb = match chroma_sysdb::from_config(sysdb_config).await {
             Ok(sysdb) => sysdb,
             Err(err) => {
                 return Err(err);
@@ -230,8 +230,7 @@ impl Configurable<CompactionServiceConfig> for CompactionManager {
         }
 
         let assignment_policy_config = &config.assignment_policy;
-        let assignment_policy = match crate::assignment::from_config(assignment_policy_config).await
-        {
+        let assignment_policy = match assignment::from_config(assignment_policy_config).await {
             Ok(assignment_policy) => assignment_policy,
             Err(err) => {
                 return Err(err);
@@ -286,11 +285,13 @@ impl Component for CompactionManager {
     }
 
     async fn start(&mut self, ctx: &ComponentContext<Self>) -> () {
-        println!("Starting CompactionManager");
-        ctx.scheduler
-            .schedule(ScheduleMessage {}, self.compaction_interval, ctx, || {
-                Some(span!(parent: None, tracing::Level::INFO, "Scheduled compaction"))
-            });
+        tracing::info!("Starting CompactionManager");
+        ctx.scheduler.schedule(
+            ScheduledCompactionMessage {},
+            self.compaction_interval,
+            ctx,
+            || Some(span!(parent: None, tracing::Level::INFO, "Scheduled compaction")),
+        );
     }
 }
 
@@ -302,25 +303,42 @@ impl Debug for CompactionManager {
 
 // ============== Handlers ==============
 #[async_trait]
-impl Handler<ScheduleMessage> for CompactionManager {
+impl Handler<ScheduledCompactionMessage> for CompactionManager {
     type Result = ();
 
     async fn handle(
         &mut self,
-        _message: ScheduleMessage,
+        _message: ScheduledCompactionMessage,
         ctx: &ComponentContext<CompactionManager>,
     ) {
-        println!("CompactionManager: Performing compaction");
-        let mut ids = Vec::new();
-        self.compact_batch(&mut ids).await;
-
+        tracing::info!("CompactionManager: Performing scheduled compaction");
+        let ids = self.compact_batch().await;
         self.hnsw_index_provider.purge_by_id(&ids).await;
 
         // Compaction is done, schedule the next compaction
-        ctx.scheduler
-            .schedule(ScheduleMessage {}, self.compaction_interval, ctx, || {
-                Some(span!(parent: None, tracing::Level::INFO, "Scheduled compaction"))
-            });
+        ctx.scheduler.schedule(
+            ScheduledCompactionMessage {},
+            self.compaction_interval,
+            ctx,
+            || Some(span!(parent: None, tracing::Level::INFO, "Scheduled compaction")),
+        );
+    }
+}
+
+#[async_trait]
+impl Handler<OneOffCompactionMessage> for CompactionManager {
+    type Result = ();
+    async fn handle(
+        &mut self,
+        message: OneOffCompactionMessage,
+        _ctx: &ComponentContext<CompactionManager>,
+    ) {
+        self.scheduler
+            .add_oneoff_collections(message.collection_ids);
+        tracing::info!(
+            "One-off collections queued: {:?}",
+            self.scheduler.get_oneoff_collections()
+        );
     }
 }
 
@@ -336,14 +354,14 @@ impl Handler<Memberlist> for CompactionManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::assignment::assignment_policy::AssignmentPolicy;
-    use crate::assignment::assignment_policy::RendezvousHashingAssignmentPolicy;
-    use crate::log::log::InMemoryLog;
-    use crate::log::log::InternalLogRecord;
-    use crate::sysdb::test_sysdb::TestSysDb;
+    use assignment::assignment_policy::AssignmentPolicy;
+    use assignment::assignment_policy::RendezvousHashingAssignmentPolicy;
     use chroma_blockstore::arrow::config::TEST_MAX_BLOCK_SIZE_BYTES;
     use chroma_cache::{new_cache_for_test, new_non_persistent_cache_for_test};
+    use chroma_log::log::InMemoryLog;
+    use chroma_log::log::InternalLogRecord;
     use chroma_storage::local::LocalStorage;
+    use chroma_sysdb::TestSysDb;
     use chroma_system::Dispatcher;
     use chroma_types::SegmentUuid;
     use chroma_types::{Collection, LogRecord, Operation, OperationRecord, Segment};
@@ -417,6 +435,7 @@ mod tests {
             database: "database_1".to_string(),
             log_position: -1,
             version: 0,
+            total_records_post_compaction: 0,
         };
 
         let tenant_2 = "tenant_2".to_string();
@@ -429,6 +448,7 @@ mod tests {
             database: "database_2".to_string(),
             log_position: -1,
             version: 0,
+            total_records_post_compaction: 0,
         };
         match *sysdb {
             SysDb::Test(ref mut sysdb) => {
@@ -517,7 +537,7 @@ mod tests {
         let max_partition_size = 1000;
 
         // Set assignment policy
-        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::new());
+        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::default());
         assignment_policy.set_members(vec![my_member_id.clone()]);
 
         let mut scheduler = Scheduler::new(
@@ -567,10 +587,7 @@ mod tests {
         let dispatcher_handle = system.start_component(dispatcher);
         manager.set_dispatcher(dispatcher_handle);
         manager.set_system(system);
-        let mut compacted = vec![];
-        let (num_completed, number_failed) = manager.compact_batch(&mut compacted).await;
-        assert_eq!(num_completed, 2);
-        assert_eq!(number_failed, 0);
+        let compacted = manager.compact_batch().await;
         assert!(
             (compacted == vec![collection_uuid_1, collection_uuid_2])
                 || (compacted == vec![collection_uuid_2, collection_uuid_1])

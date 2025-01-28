@@ -36,7 +36,7 @@ impl std::fmt::Display for SegmentUuid {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub enum SegmentType {
     HnswDistributed,
     BlockfileMetadata,
@@ -156,6 +156,23 @@ impl TryFrom<chroma_proto::Segment> for Segment {
             metadata: segment_metadata,
             file_path: file_paths,
         })
+    }
+}
+
+impl From<Segment> for chroma_proto::Segment {
+    fn from(value: Segment) -> Self {
+        Self {
+            id: value.id.0.to_string(),
+            r#type: value.r#type.into(),
+            scope: chroma_proto::SegmentScope::from(value.scope) as i32,
+            collection: value.collection.0.to_string(),
+            metadata: value.metadata.map(Into::into),
+            file_paths: value
+                .file_path
+                .into_iter()
+                .map(|(name, paths)| (name, chroma_proto::FilePaths { paths }))
+                .collect(),
+        }
     }
 }
 

@@ -1,19 +1,17 @@
 use chroma_benchmark::datasets::sift::Sift1MData;
+use chroma_log::{
+    log::{InMemoryLog, Log},
+    test::modulo_metadata,
+};
+use chroma_segment::test::TestSegment;
 use chroma_types::{
-    Chunk, CollectionUuid, DirectWhereComparison, LogRecord, MetadataSetValue, Operation,
-    OperationRecord, SetOperator, Where, WhereComparison,
+    Chunk, CollectionUuid, MetadataExpression, LogRecord, MetadataSetValue, Operation,
+    OperationRecord, SetOperator, Where, MetadataComparison,
 };
 use indicatif::ProgressIterator;
-use worker::{
-    execution::operators::{
-        fetch_log::FetchLogOperator, filter::FilterOperator, limit::LimitOperator,
-        projection::ProjectionOperator,
-    },
-    log::{
-        log::{InMemoryLog, Log},
-        test::modulo_metadata,
-    },
-    segment::test::TestSegment,
+use worker::execution::operators::{
+    fetch_log::FetchLogOperator, filter::FilterOperator, limit::LimitOperator,
+    projection::ProjectionOperator,
 };
 
 const DATA_CHUNK_SIZE: usize = 10000;
@@ -77,16 +75,16 @@ pub fn always_false_filter_for_modulo_metadata() -> FilterOperator {
     FilterOperator {
         query_ids: None,
         where_clause: Some(Where::disjunction(vec![
-            Where::DirectWhereComparison(DirectWhereComparison {
+            Where::Metadata(MetadataExpression {
                 key: "is_even".to_string(),
-                comparison: WhereComparison::Set(
+                comparison: MetadataComparison::Set(
                     SetOperator::NotIn,
                     MetadataSetValue::Bool(vec![false, true]),
                 ),
             }),
-            Where::DirectWhereComparison(DirectWhereComparison {
+            Where::Metadata(MetadataExpression {
                 key: "modulo_3".to_string(),
-                comparison: WhereComparison::Set(
+                comparison: MetadataComparison::Set(
                     SetOperator::NotIn,
                     MetadataSetValue::Int(vec![0, 1, 2]),
                 ),
@@ -99,16 +97,16 @@ pub fn always_true_filter_for_modulo_metadata() -> FilterOperator {
     FilterOperator {
         query_ids: None,
         where_clause: Some(Where::conjunction(vec![
-            Where::DirectWhereComparison(DirectWhereComparison {
+            Where::Metadata(MetadataExpression {
                 key: "is_even".to_string(),
-                comparison: WhereComparison::Set(
+                comparison: MetadataComparison::Set(
                     SetOperator::In,
                     MetadataSetValue::Bool(vec![false, true]),
                 ),
             }),
-            Where::DirectWhereComparison(DirectWhereComparison {
+            Where::Metadata(MetadataExpression {
                 key: "modulo_3".to_string(),
-                comparison: WhereComparison::Set(
+                comparison: MetadataComparison::Set(
                     SetOperator::In,
                     MetadataSetValue::Int(vec![0, 1, 2]),
                 ),

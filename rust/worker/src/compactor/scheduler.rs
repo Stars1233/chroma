@@ -1,20 +1,18 @@
 use std::collections::HashSet;
 use std::str::FromStr;
 
+use chroma_config::assignment::assignment_policy::AssignmentPolicy;
+use chroma_log::log::{CollectionInfo, CollectionRecord, Log};
+use chroma_memberlist::memberlist_provider::Memberlist;
+use chroma_sysdb::SysDb;
 use chroma_types::CollectionUuid;
 use figment::providers::Env;
 use figment::Figment;
 use serde::Deserialize;
 use uuid::Uuid;
 
-use crate::assignment::assignment_policy::AssignmentPolicy;
 use crate::compactor::scheduler_policy::SchedulerPolicy;
 use crate::compactor::types::CompactionJob;
-use crate::log::log::CollectionInfo;
-use crate::log::log::CollectionRecord;
-use crate::log::log::Log;
-use crate::memberlist::Memberlist;
-use crate::sysdb::sysdb::SysDb;
 
 pub(crate) struct Scheduler {
     my_ip: String,
@@ -26,6 +24,7 @@ pub(crate) struct Scheduler {
     min_compaction_size: usize,
     memberlist: Option<Memberlist>,
     assignment_policy: Box<dyn AssignmentPolicy>,
+    oneoff_collections: HashSet<CollectionUuid>,
     disabled_collections: HashSet<CollectionUuid>,
 }
 
@@ -56,8 +55,17 @@ impl Scheduler {
             max_concurrent_jobs,
             memberlist: None,
             assignment_policy,
+            oneoff_collections: HashSet::new(),
             disabled_collections,
         }
+    }
+
+    pub(crate) fn add_oneoff_collections(&mut self, ids: Vec<CollectionUuid>) {
+        self.oneoff_collections.extend(ids);
+    }
+
+    pub(crate) fn get_oneoff_collections(&self) -> Vec<CollectionUuid> {
+        self.oneoff_collections.iter().cloned().collect()
     }
 
     async fn get_collections_with_new_data(&mut self) -> Vec<CollectionInfo> {
@@ -154,7 +162,7 @@ impl Scheduler {
                 }
             }
         }
-        self.filter_collections(collection_records)
+        collection_records
     }
 
     fn filter_collections(&mut self, collections: Vec<CollectionRecord>) -> Vec<CollectionRecord> {
@@ -182,11 +190,35 @@ impl Scheduler {
     }
 
     pub(crate) async fn schedule_internal(&mut self, collection_records: Vec<CollectionRecord>) {
-        let jobs = self
-            .policy
-            .determine(collection_records, self.max_concurrent_jobs as i32);
         self.job_queue.clear();
-        self.job_queue.extend(jobs);
+        let mut scheduled_collections = Vec::new();
+        for record in collection_records {
+            if self.oneoff_collections.contains(&record.collection_id) {
+                tracing::info!(
+                    "Creating one-off compaction job for collection: {}",
+                    record.collection_version
+                );
+                self.job_queue.push(CompactionJob {
+                    collection_id: record.collection_id,
+                    tenant_id: record.tenant_id,
+                    offset: record.offset,
+                    collection_version: record.collection_version,
+                });
+                self.oneoff_collections.remove(&record.collection_id);
+                if self.job_queue.len() == self.max_concurrent_jobs {
+                    return;
+                }
+            } else {
+                scheduled_collections.push(record);
+            }
+        }
+
+        let filtered_collections = self.filter_collections(scheduled_collections);
+        self.job_queue.extend(
+            self.policy
+                .determine(filtered_collections, self.max_concurrent_jobs as i32),
+        );
+        self.job_queue.truncate(self.max_concurrent_jobs);
     }
 
     pub(crate) fn recompute_disabled_collections(&mut self) {
@@ -244,11 +276,10 @@ mod tests {
     use std::str::FromStr;
 
     use super::*;
-    use crate::assignment::assignment_policy::RendezvousHashingAssignmentPolicy;
     use crate::compactor::scheduler_policy::LasCompactionTimeSchedulerPolicy;
-    use crate::log::log::InMemoryLog;
-    use crate::log::log::InternalLogRecord;
-    use crate::sysdb::test_sysdb::TestSysDb;
+    use chroma_config::assignment::assignment_policy::RendezvousHashingAssignmentPolicy;
+    use chroma_log::log::{InMemoryLog, InternalLogRecord};
+    use chroma_sysdb::TestSysDb;
     use chroma_types::{Collection, CollectionUuid, LogRecord, Operation, OperationRecord};
 
     #[tokio::test]
@@ -315,6 +346,7 @@ mod tests {
             database: "database_1".to_string(),
             log_position: 0,
             version: 0,
+            total_records_post_compaction: 0,
         };
 
         let tenant_2 = "tenant_2".to_string();
@@ -327,6 +359,7 @@ mod tests {
             database: "database_2".to_string(),
             log_position: 0,
             version: 0,
+            total_records_post_compaction: 0,
         };
         match *sysdb {
             SysDb::Test(ref mut sysdb) => {
@@ -343,7 +376,7 @@ mod tests {
         let max_concurrent_jobs = 1000;
 
         // Set assignment policy
-        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::new());
+        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::default());
         assignment_policy.set_members(vec![my_member_id.clone()]);
 
         let mut scheduler = Scheduler::new(
@@ -539,6 +572,7 @@ mod tests {
             database: "database_1".to_string(),
             log_position: 0,
             version: 0,
+            total_records_post_compaction: 0,
         };
 
         match *sysdb {
@@ -554,7 +588,7 @@ mod tests {
         let max_concurrent_jobs = 1000;
 
         // Set assignment policy
-        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::new());
+        let mut assignment_policy = Box::new(RendezvousHashingAssignmentPolicy::default());
         assignment_policy.set_members(vec![my_ip.clone()]);
 
         let mut scheduler = Scheduler::new(

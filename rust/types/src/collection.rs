@@ -1,5 +1,5 @@
 use super::{Metadata, MetadataValueConversionError};
-use crate::{chroma_proto, ConversionError, Segment};
+use crate::{chroma_proto, Segment};
 use chroma_error::{ChromaError, ErrorCodes};
 use thiserror::Error;
 use uuid::Uuid;
@@ -41,6 +41,7 @@ pub struct Collection {
     pub database: String,
     pub log_position: i64,
     pub version: i32,
+    pub total_records_post_compaction: u64,
 }
 
 #[derive(Error, Debug)]
@@ -85,7 +86,25 @@ impl TryFrom<chroma_proto::Collection> for Collection {
             database: proto_collection.database,
             log_position: proto_collection.log_position,
             version: proto_collection.version,
+            total_records_post_compaction: proto_collection.total_records_post_compaction,
         })
+    }
+}
+
+impl From<Collection> for chroma_proto::Collection {
+    fn from(value: Collection) -> Self {
+        Self {
+            id: value.collection_id.0.to_string(),
+            name: value.name,
+            configuration_json_str: String::new(),
+            metadata: value.metadata.map(Into::into),
+            dimension: value.dimension,
+            tenant: value.tenant,
+            database: value.database,
+            log_position: value.log_position,
+            version: value.version,
+            total_records_post_compaction: value.total_records_post_compaction,
+        }
     }
 }
 
@@ -95,35 +114,6 @@ pub struct CollectionAndSegments {
     pub metadata_segment: Segment,
     pub record_segment: Segment,
     pub vector_segment: Segment,
-}
-
-impl TryFrom<chroma_proto::ScanOperator> for CollectionAndSegments {
-    type Error = ConversionError;
-
-    fn try_from(value: chroma_proto::ScanOperator) -> Result<Self, ConversionError> {
-        Ok(Self {
-            collection: value
-                .collection
-                .ok_or(ConversionError::DecodeError)?
-                .try_into()
-                .map_err(|_| ConversionError::DecodeError)?,
-            metadata_segment: value
-                .metadata
-                .ok_or(ConversionError::DecodeError)?
-                .try_into()
-                .map_err(|_| ConversionError::DecodeError)?,
-            record_segment: value
-                .record
-                .ok_or(ConversionError::DecodeError)?
-                .try_into()
-                .map_err(|_| ConversionError::DecodeError)?,
-            vector_segment: value
-                .knn
-                .ok_or(ConversionError::DecodeError)?
-                .try_into()
-                .map_err(|_| ConversionError::DecodeError)?,
-        })
-    }
 }
 
 #[cfg(test)]
@@ -143,6 +133,7 @@ mod test {
             database: "qux".to_string(),
             log_position: 0,
             version: 0,
+            total_records_post_compaction: 0,
         };
         let converted_collection: Collection = proto_collection.try_into().unwrap();
         assert_eq!(
@@ -154,5 +145,6 @@ mod test {
         assert_eq!(converted_collection.dimension, None);
         assert_eq!(converted_collection.tenant, "baz".to_string());
         assert_eq!(converted_collection.database, "qux".to_string());
+        assert_eq!(converted_collection.total_records_post_compaction, 0);
     }
 }

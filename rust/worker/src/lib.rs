@@ -1,13 +1,15 @@
-mod assignment;
 mod compactor;
-mod memberlist;
 mod server;
-mod sysdb;
 mod tracing;
 mod utils;
 
 use chroma_config::Configurable;
-use memberlist::MemberlistProvider;
+use chroma_memberlist::memberlist_provider::{
+    CustomResourceMemberlistProvider, MemberlistProvider,
+};
+use clap::Parser;
+use compactor::compaction_client::CompactionClient;
+use compactor::compaction_server::CompactionServer;
 
 use tokio::select;
 use tokio::signal::unix::{signal, SignalKind};
@@ -15,8 +17,6 @@ use tokio::signal::unix::{signal, SignalKind};
 // Required for benchmark
 pub mod config;
 pub mod execution;
-pub mod log;
-pub mod segment;
 
 const CONFIG_PATH_ENV_VAR: &str = "CONFIG_PATH";
 
@@ -96,7 +96,7 @@ pub async fn compaction_service_entrypoint() {
 
     let system = chroma_system::System::new();
 
-    let mut memberlist = match memberlist::CustomResourceMemberlistProvider::try_from_config(
+    let mut memberlist = match CustomResourceMemberlistProvider::try_from_config(
         &config.memberlist_provider,
     )
     .await
@@ -132,6 +132,15 @@ pub async fn compaction_service_entrypoint() {
 
     let mut memberlist_handle = system.start_component(memberlist);
 
+    let compaction_server = CompactionServer {
+        manager: compaction_manager_handle.clone(),
+        port: config.my_port,
+    };
+
+    let server_join_handle = tokio::spawn(async move {
+        let _ = compaction_server.run().await;
+    });
+
     let mut sigterm = match signal(SignalKind::terminate()) {
         Ok(sigterm) => sigterm,
         Err(e) => {
@@ -152,7 +161,15 @@ pub async fn compaction_service_entrypoint() {
             let _ = compaction_manager_handle.join().await;
             system.stop().await;
             system.join().await;
+            let _ = server_join_handle.await;
         },
     };
     println!("Server stopped");
+}
+
+pub async fn compaction_client_entrypoint() {
+    let client = CompactionClient::parse();
+    if let Err(e) = client.run().await {
+        eprintln!("{e}");
+    }
 }

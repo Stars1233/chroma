@@ -1,3 +1,5 @@
+use chroma_config::assignment;
+use chroma_sysdb::SysDbConfig;
 use figment::providers::{Env, Format, Yaml};
 use serde::Deserialize;
 
@@ -102,12 +104,12 @@ pub struct QueryServiceConfig {
     pub(crate) my_member_id: String,
     pub(crate) my_port: u16,
     #[allow(dead_code)]
-    pub(crate) assignment_policy: crate::assignment::config::AssignmentPolicyConfig,
+    pub(crate) assignment_policy: assignment::config::AssignmentPolicyConfig,
     #[allow(dead_code)]
-    pub(crate) memberlist_provider: crate::memberlist::config::MemberlistProviderConfig,
-    pub(crate) sysdb: crate::sysdb::config::SysDbConfig,
+    pub(crate) memberlist_provider: chroma_memberlist::config::MemberlistProviderConfig,
+    pub(crate) sysdb: SysDbConfig,
     pub(crate) storage: chroma_storage::config::StorageConfig,
-    pub(crate) log: crate::log::config::LogConfig,
+    pub(crate) log: chroma_log::config::LogConfig,
     pub dispatcher: chroma_system::DispatcherConfig,
     pub(crate) blockfile_provider: chroma_blockstore::config::BlockfileProviderConfig,
     pub(crate) hnsw_provider: chroma_index::config::HnswProviderConfig,
@@ -130,11 +132,11 @@ pub struct CompactionServiceConfig {
     pub(crate) my_member_id: String,
     #[allow(dead_code)]
     pub(crate) my_port: u16,
-    pub(crate) assignment_policy: crate::assignment::config::AssignmentPolicyConfig,
-    pub(crate) memberlist_provider: crate::memberlist::config::MemberlistProviderConfig,
-    pub(crate) sysdb: crate::sysdb::config::SysDbConfig,
+    pub(crate) assignment_policy: assignment::config::AssignmentPolicyConfig,
+    pub(crate) memberlist_provider: chroma_memberlist::config::MemberlistProviderConfig,
+    pub(crate) sysdb: SysDbConfig,
     pub(crate) storage: chroma_storage::config::StorageConfig,
-    pub(crate) log: crate::log::config::LogConfig,
+    pub(crate) log: chroma_log::config::LogConfig,
     pub(crate) dispatcher: chroma_system::DispatcherConfig,
     pub(crate) compactor: crate::compactor::config::CompactorConfig,
     pub(crate) blockfile_provider: chroma_blockstore::config::BlockfileProviderConfig,
