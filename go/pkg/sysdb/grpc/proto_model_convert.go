@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"time"
+
 	"github.com/chroma-core/chroma/go/pkg/common"
 	"github.com/chroma-core/chroma/go/pkg/proto/coordinatorpb"
 	"github.com/chroma-core/chroma/go/pkg/sysdb/coordinator/model"
@@ -51,7 +53,15 @@ func convertCollectionToProto(collection *model.Collection) *coordinatorpb.Colle
 		TotalRecordsPostCompaction: collection.TotalRecordsPostCompaction,
 		SizeBytesPostCompaction:    collection.SizeBytesPostCompaction,
 		LastCompactionTimeSecs:     collection.LastCompactionTimeSecs,
+		VersionFilePath:            &collection.VersionFileName,
+		LineageFilePath:            collection.LineageFileName,
 	}
+
+	if collection.RootCollectionID != nil {
+		rootCollectionId := collection.RootCollectionID.String()
+		collectionpb.RootCollectionId = &rootCollectionId
+	}
+
 	if collection.Metadata == nil {
 		return collectionpb
 	}
@@ -123,6 +133,7 @@ func convertToCreateCollectionModel(req *coordinatorpb.CreateCollectionRequest) 
 		GetOrCreate:          req.GetGetOrCreate(),
 		TenantID:             req.GetTenant(),
 		DatabaseName:         req.GetDatabase(),
+		Ts:                   time.Now().Unix(),
 	}, nil
 }
 

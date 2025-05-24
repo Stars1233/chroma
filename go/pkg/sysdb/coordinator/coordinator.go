@@ -131,7 +131,7 @@ func (s *Coordinator) GetCollectionSize(ctx context.Context, collectionID types.
 }
 
 func (s *Coordinator) GetCollectionWithSegments(ctx context.Context, collectionID types.UniqueID) (*model.Collection, []*model.Segment, error) {
-	return s.catalog.GetCollectionWithSegments(ctx, collectionID)
+	return s.catalog.GetCollectionWithSegments(ctx, collectionID, false)
 }
 
 func (s *Coordinator) CheckCollection(ctx context.Context, collectionID types.UniqueID) (bool, error) {
@@ -261,6 +261,10 @@ func (s *Coordinator) MarkVersionForDeletion(ctx context.Context, req *coordinat
 
 func (s *Coordinator) DeleteCollectionVersion(ctx context.Context, req *coordinatorpb.DeleteCollectionVersionRequest) (*coordinatorpb.DeleteCollectionVersionResponse, error) {
 	return s.catalog.DeleteCollectionVersion(ctx, req)
+}
+
+func (s *Coordinator) BatchGetCollectionVersionFilePaths(ctx context.Context, req *coordinatorpb.BatchGetCollectionVersionFilePathsRequest) (*coordinatorpb.BatchGetCollectionVersionFilePathsResponse, error) {
+	return s.catalog.BatchGetCollectionVersionFilePaths(ctx, req.CollectionIds)
 }
 
 // SetDeleteMode sets the delete mode for testing
