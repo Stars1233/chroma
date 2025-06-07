@@ -5,6 +5,7 @@ use crate::{
 };
 use chroma_error::{ChromaError, ErrorCodes};
 use serde::{Deserialize, Serialize};
+use std::time::{Duration, SystemTime};
 use thiserror::Error;
 use utoipa::ToSchema;
 use uuid::Uuid;
@@ -94,6 +95,14 @@ pub struct Collection {
     pub size_bytes_post_compaction: u64,
     #[serde(skip)]
     pub last_compaction_time_secs: u64,
+    #[serde(skip)]
+    pub version_file_path: Option<String>,
+    #[serde(skip)]
+    pub root_collection_id: Option<CollectionUuid>,
+    #[serde(skip)]
+    pub lineage_file_path: Option<String>,
+    #[serde(skip, default = "SystemTime::now")]
+    pub updated_at: SystemTime,
 }
 
 impl Default for Collection {
@@ -111,6 +120,10 @@ impl Default for Collection {
             total_records_post_compaction: 0,
             size_bytes_post_compaction: 0,
             last_compaction_time_secs: 0,
+            version_file_path: None,
+            root_collection_id: None,
+            lineage_file_path: None,
+            updated_at: SystemTime::now(),
         }
     }
 }
@@ -213,6 +226,14 @@ impl TryFrom<chroma_proto::Collection> for Collection {
             },
             None => None,
         };
+        // TODO(@codetheweb): this be updated to error with "missing field" once all SysDb deployments are up-to-date
+        let updated_at = match proto_collection.updated_at {
+            Some(updated_at) => {
+                SystemTime::UNIX_EPOCH
+                    + Duration::new(updated_at.seconds as u64, updated_at.nanos as u32)
+            }
+            None => SystemTime::now(),
+        };
         Ok(Collection {
             collection_id,
             name: proto_collection.name,
@@ -226,6 +247,12 @@ impl TryFrom<chroma_proto::Collection> for Collection {
             total_records_post_compaction: proto_collection.total_records_post_compaction,
             size_bytes_post_compaction: proto_collection.size_bytes_post_compaction,
             last_compaction_time_secs: proto_collection.last_compaction_time_secs,
+            version_file_path: proto_collection.version_file_path,
+            root_collection_id: proto_collection
+                .root_collection_id
+                .map(|uuid| CollectionUuid(Uuid::try_parse(&uuid).unwrap())),
+            lineage_file_path: proto_collection.lineage_file_path,
+            updated_at,
         })
     }
 }
@@ -261,6 +288,10 @@ impl TryFrom<Collection> for chroma_proto::Collection {
             total_records_post_compaction: value.total_records_post_compaction,
             size_bytes_post_compaction: value.size_bytes_post_compaction,
             last_compaction_time_secs: value.last_compaction_time_secs,
+            version_file_path: value.version_file_path,
+            root_collection_id: value.root_collection_id.map(|uuid| uuid.0.to_string()),
+            lineage_file_path: value.lineage_file_path,
+            updated_at: Some(value.updated_at.into()),
         })
     }
 }
@@ -306,6 +337,13 @@ mod test {
             total_records_post_compaction: 0,
             size_bytes_post_compaction: 0,
             last_compaction_time_secs: 0,
+            version_file_path: Some("version_file_path".to_string()),
+            root_collection_id: Some("00000000-0000-0000-0000-000000000000".to_string()),
+            lineage_file_path: Some("lineage_file_path".to_string()),
+            updated_at: Some(prost_types::Timestamp {
+                seconds: 1,
+                nanos: 1,
+            }),
         };
         let converted_collection: Collection = proto_collection.try_into().unwrap();
         assert_eq!(
@@ -318,5 +356,23 @@ mod test {
         assert_eq!(converted_collection.tenant, "baz".to_string());
         assert_eq!(converted_collection.database, "qux".to_string());
         assert_eq!(converted_collection.total_records_post_compaction, 0);
+        assert_eq!(converted_collection.size_bytes_post_compaction, 0);
+        assert_eq!(converted_collection.last_compaction_time_secs, 0);
+        assert_eq!(
+            converted_collection.version_file_path,
+            Some("version_file_path".to_string())
+        );
+        assert_eq!(
+            converted_collection.root_collection_id,
+            Some(CollectionUuid(Uuid::nil()))
+        );
+        assert_eq!(
+            converted_collection.lineage_file_path,
+            Some("lineage_file_path".to_string())
+        );
+        assert_eq!(
+            converted_collection.updated_at,
+            SystemTime::UNIX_EPOCH + Duration::new(1, 1)
+        );
     }
 }

@@ -14,7 +14,7 @@ use tracing::Instrument;
 use crate::{
     unprefixed_fragment_path, BatchManager, CursorStore, CursorStoreOptions, Error,
     ExponentialBackoff, Fragment, FragmentSeqNo, LogPosition, LogReader, LogReaderOptions,
-    LogWriterOptions, Manifest, ManifestManager,
+    LogWriterOptions, Manifest, ManifestManager, ThrottleOptions,
 };
 
 /// The epoch writer is a counting writer.  Every epoch exists.  An epoch goes
@@ -132,6 +132,106 @@ impl LogWriter {
         })
     }
 
+    /// Given a contiguous subset of data from some other location (preferably another log),
+    /// construct a new log under storage/prefix using the provided options.
+    ///
+    /// This function is safe to run again on failure and will not bootstrap over a partially
+    /// bootstrapped collection.
+    ///
+    /// It is my intention to make this more robust as time goes on.  Concretely, that means that
+    /// as we encounter partial failures left by the tool we fix them.  There are 3 failure points
+    /// and I'd prefer to manually inspect failures than get the automation right to do it always
+    /// automatically.  Bootstrap is intended only to last as long as there is a migration from the
+    /// go to the rust log services.
+    pub async fn bootstrap<D: MarkDirty>(
+        options: &LogWriterOptions,
+        storage: &Arc<Storage>,
+        prefix: &str,
+        writer: &str,
+        mark_dirty: D,
+        first_record_offset: LogPosition,
+        messages: Vec<Vec<u8>>,
+    ) -> Result<(), Error> {
+        let num_records = messages.len();
+        let start = first_record_offset;
+        let limit = first_record_offset + num_records;
+        // SAFETY(rescrv):  This is a speculative load to narrow the window in which we would see a
+        // race between writers.
+        let manifest = Manifest::load(&ThrottleOptions::default(), storage, prefix).await?;
+        if manifest.is_some() {
+            return Err(Error::LogContention);
+        }
+        // SAFETY(rescrv):  This will only succeed if the file doesn't exist.  Technically the log
+        // could be initialized and garbage collected to leave a prefix hole, but our timing
+        // assumption is that every op happens in less than 1/2 the GC interval, so there's no way
+        // for that to happen.
+        //
+        // If the file exists, this will fail with LogContention, which fails us with
+        // LogContention.  Other errors fail transparently, too.
+        if num_records > 0 {
+            let (path, setsum, num_bytes) = upload_parquet(
+                options,
+                storage,
+                prefix,
+                FragmentSeqNo(1),
+                first_record_offset,
+                messages,
+            )
+            .await?;
+            let seq_no = FragmentSeqNo(1);
+            let num_bytes = num_bytes as u64;
+            let frag = Fragment {
+                path,
+                seq_no,
+                start,
+                limit,
+                num_bytes,
+                setsum,
+            };
+            let empty_manifest = Manifest::new_empty(writer);
+            let mut new_manifest = empty_manifest.clone();
+            new_manifest.initial_offset = Some(start);
+            // SAFETY(rescrv):  This is unit tested to never happen.  If it happens, add more tests.
+            if !new_manifest.can_apply_fragment(&frag) {
+                tracing::error!("Cannot apply frag to a clean manifest.");
+                return Err(Error::Internal);
+            }
+            new_manifest.apply_fragment(frag);
+            // SAFETY(rescrv):  If this fails, there's nothing left to do.
+            empty_manifest
+                .install(
+                    //TODO(rescrv): Thread throttle options.
+                    &ThrottleOptions::default(),
+                    storage,
+                    prefix,
+                    None,
+                    &new_manifest,
+                )
+                .await?;
+            // Not Safety:
+            // We mark dirty, but if we lose that we lose that.
+            // Failure to mark dirty fails the bootstrap.
+            mark_dirty.mark_dirty(start, num_records).await?;
+        } else {
+            let empty_manifest = Manifest::new_empty("bootstrap");
+            let mut new_manifest = empty_manifest.clone();
+            new_manifest.initial_offset = Some(start);
+            // SAFETY(rescrv):  If this fails, there's nothing left to do.
+            empty_manifest
+                .install(
+                    //TODO(rescrv): Thread throttle options.
+                    &ThrottleOptions::default(),
+                    storage,
+                    prefix,
+                    None,
+                    &new_manifest,
+                )
+                .await?;
+            // No need to mark dirty as the manifest is empty.
+        }
+        Ok(())
+    }
+
     /// This will close the log.
     pub async fn close(self) -> Result<(), Error> {
         // SAFETY(rescrv):  Mutex poisoning.
@@ -215,6 +315,14 @@ impl LogWriter {
                 self.writer.clone(),
             )
         })
+    }
+
+    pub fn manifest(&self) -> Option<Manifest> {
+        // SAFETY(rescrv):  Mutex poisoning.
+        let inner = self.inner.lock().unwrap();
+        inner
+            .as_ref()
+            .map(|inner| inner.writer.manifest_manager.latest())
     }
 }
 
@@ -410,9 +518,7 @@ impl OnceLogWriter {
             log_position,
             messages,
         );
-        let fut2 = self
-            .mark_dirty
-            .mark_dirty(log_position + messages_len, messages_len);
+        let fut2 = self.mark_dirty.mark_dirty(log_position, messages_len);
         let (res1, res2) = futures::future::join(fut1, fut2).await;
         res2?;
         let (path, setsum, num_bytes) = res1?;
@@ -500,6 +606,9 @@ pub async fn upload_parquet(
     loop {
         let (buffer, setsum) = construct_parquet(log_position, &messages)?;
         tracing::info!("upload_parquet: {:?} with {} bytes", path, buffer.len());
+        // NOTE(rescrv):  This match block has been thoroughly reasoned through within the
+        // `bootstrap` call above.  Don't change the error handling here without re-reasoning
+        // there.
         match storage
             .put_bytes(
                 &path,

@@ -199,6 +199,17 @@ pub enum Storage {
     AdmissionControlledS3(admissioncontrolleds3::AdmissionControlledS3Storage),
 }
 
+impl std::fmt::Debug for Storage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Storage::ObjectStore(_) => f.debug_tuple("ObjectStore").finish(),
+            Storage::S3(_) => f.debug_tuple("S3").finish(),
+            Storage::Local(_) => f.debug_tuple("Local").finish(),
+            Storage::AdmissionControlledS3(_) => f.debug_tuple("AdmissionControlledS3").finish(),
+        }
+    }
+}
+
 impl ChromaError for StorageConfigError {
     fn code(&self) -> ErrorCodes {
         match self {
@@ -340,14 +351,13 @@ impl Configurable<StorageConfig> for Storage {
     }
 }
 
-pub fn test_storage() -> Storage {
-    Storage::Local(LocalStorage::new(
-        TempDir::new()
-            .expect("Should be able to create a temporary directory.")
-            .into_path()
-            .to_str()
-            .expect("Should be able to convert temporary directory path to string"),
-    ))
+pub fn test_storage() -> (TempDir, Storage) {
+    let temp_dir = TempDir::new().expect("Should be able to create a temporary directory.");
+    let storage =
+        Storage::Local(LocalStorage::new(temp_dir.path().to_str().expect(
+            "Should be able to convert temporary directory path to string",
+        )));
+    (temp_dir, storage)
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
