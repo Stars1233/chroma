@@ -24,8 +24,8 @@ from chromadb.telemetry.opentelemetry import (
 )
 from chromadb.telemetry.product import ProductTelemetryClient
 from chromadb.utils.async_to_sync import async_to_sync
-
 from chromadb.types import Database, Tenant, Collection as CollectionModel
+from chromadb.api.types import optional_embeddings_to_base64_strings
 
 from chromadb.api.types import (
     Documents,
@@ -123,10 +123,12 @@ class AsyncFastAPI(BaseHTTPClient, AsyncServerAPI):
                 + " (https://github.com/chroma-core/chroma)"
             )
 
+            limits = httpx.Limits(max_keepalive_connections=self.keepalive_secs)
             self._clients[loop_hash] = httpx.AsyncClient(
                 timeout=None,
                 headers=headers,
                 verify=self._settings.chroma_server_ssl_verify or False,
+                limits=limits,
             )
 
         return self._clients[loop_hash]
@@ -514,16 +516,20 @@ class AsyncFastAPI(BaseHTTPClient, AsyncServerAPI):
         """
         Submits a batch of embeddings to the database
         """
+        data = {
+            "ids": batch[0],
+            "embeddings": optional_embeddings_to_base64_strings(batch[1])
+            if self.get_settings().use_base64_encoding_for_embeddings
+            else batch[1],
+            "metadatas": batch[2],
+            "documents": batch[3],
+            "uris": batch[4],
+        }
+
         return await self._make_request(
             "post",
             url,
-            json={
-                "ids": batch[0],
-                "embeddings": batch[1],
-                "metadatas": batch[2],
-                "documents": batch[3],
-                "uris": batch[4],
-            },
+            json=data,
         )
 
     @trace_method("AsyncFastAPI._add", OpenTelemetryGranularity.ALL)

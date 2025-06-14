@@ -1314,9 +1314,9 @@ dependencies = [
 
 [[package]]
 name = "cc"
-version = "1.2.21"
+version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8691782945451c1c383942c4874dbe63814f61cb57ef773cda2972682b7bb3c0"
+checksum = "fd9de9f2205d5ef3fd67e685b0df337994ddd4495e2a28d185500d0e1edfea47"
 dependencies = [
  "jobserver",
  "libc",
@@ -1360,15 +1360,9 @@ dependencies = [
  "async-tempfile",
  "bincode",
  "bloom",
- "chroma-blockstore",
- "chroma-cache",
- "chroma-storage",
- "chroma-types",
- "clap",
  "criterion",
  "dirs 5.0.1",
  "futures",
- "indicatif",
  "rand 0.8.5",
  "reqwest 0.12.9",
  "serde",
@@ -1378,8 +1372,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-util",
- "uuid",
- "worker",
 ]
 
 [[package]]
@@ -1403,11 +1395,9 @@ dependencies = [
  "proptest",
  "proptest-state-machine",
  "prost 0.13.5",
- "prost-types 0.13.5",
  "rand 0.8.5",
  "roaring",
  "serde",
- "serde_json",
  "shuttle",
  "tempfile",
  "thiserror 1.0.69",
@@ -1423,10 +1413,8 @@ dependencies = [
  "ahash",
  "anyhow",
  "async-trait",
- "chroma-config",
  "chroma-error",
  "chroma-tracing",
- "chroma-types",
  "clap",
  "foyer",
  "mixtrics",
@@ -1437,13 +1425,11 @@ dependencies = [
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
 name = "chroma-cli"
-version = "1.1.1"
+version = "1.1.2"
 dependencies = [
  "arboard",
  "axum 0.8.1",
@@ -1525,6 +1511,7 @@ dependencies = [
  "async-trait",
  "axum 0.8.1",
  "backon",
+ "base64 0.22.1",
  "chroma-cache",
  "chroma-config",
  "chroma-distance",
@@ -1537,8 +1524,10 @@ dependencies = [
  "chroma-system",
  "chroma-tracing",
  "chroma-types",
+ "criterion",
  "figment",
  "futures",
+ "http-body-util",
  "lazy_static",
  "mdac",
  "ndarray",
@@ -1547,8 +1536,6 @@ dependencies = [
  "proptest",
  "proptest-state-machine",
  "rand 0.8.5",
- "random-port",
- "regex",
  "reqwest 0.12.9",
  "rust-embed",
  "serde",
@@ -1618,10 +1605,8 @@ dependencies = [
  "figment",
  "guacamole",
  "opentelemetry",
- "opentelemetry-http",
  "opentelemetry-otlp",
  "opentelemetry_sdk",
- "rand 0.8.5",
  "reqwest 0.12.9",
  "serde",
  "serde_json",
@@ -1639,24 +1624,19 @@ dependencies = [
 name = "chroma-log"
 version = "0.1.0"
 dependencies = [
- "arrow",
  "async-trait",
  "bytemuck",
- "bytes",
  "chroma-config",
  "chroma-error",
+ "chroma-memberlist",
  "chroma-segment",
  "chroma-sqlite",
- "chroma-storage",
  "chroma-sysdb",
  "chroma-system",
  "chroma-tracing",
  "chroma-types",
- "figment",
  "futures",
- "opentelemetry",
  "proptest",
- "prost 0.13.5",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -1665,12 +1645,9 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tonic",
- "tonic-health",
- "tower 0.5.2",
+ "tower 0.4.13",
  "tracing",
- "tracing-opentelemetry",
  "uuid",
- "wal3",
 ]
 
 [[package]]
@@ -1679,38 +1656,29 @@ version = "0.1.0"
 dependencies = [
  "arrow",
  "async-trait",
- "bytemuck",
  "bytes",
  "chroma-cache",
  "chroma-config",
  "chroma-error",
  "chroma-log",
- "chroma-segment",
- "chroma-sqlite",
  "chroma-storage",
- "chroma-sysdb",
- "chroma-system",
  "chroma-tracing",
  "chroma-types",
  "figment",
  "futures",
  "opentelemetry",
+ "parking_lot",
  "parquet",
  "proptest",
  "prost 0.13.5",
- "rand 0.8.5",
  "serde",
  "serde_json",
- "setsum",
- "sqlx",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
  "tonic",
  "tonic-health",
- "tower 0.5.2",
  "tracing",
- "tracing-opentelemetry",
  "uuid",
  "wal3",
 ]
@@ -1723,6 +1691,8 @@ dependencies = [
  "chroma-config",
  "chroma-error",
  "chroma-system",
+ "chroma-tracing",
+ "chroma-types",
  "futures",
  "k8s-openapi",
  "kube",
@@ -1732,6 +1702,8 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
+ "tonic",
+ "tower 0.4.13",
  "tracing",
 ]
 
@@ -1751,7 +1723,6 @@ dependencies = [
  "chroma-storage",
  "chroma-types",
  "futures",
- "parking_lot",
  "proptest",
  "rayon",
  "regex",
@@ -1760,7 +1731,6 @@ dependencies = [
  "sea-query-binder",
  "serde",
  "serde-pickle",
- "serde_json",
  "shuttle",
  "sqlx",
  "tantivy",
@@ -1779,7 +1749,6 @@ dependencies = [
  "chroma-config",
  "chroma-error",
  "chroma-types",
- "futures",
  "md5",
  "pyo3",
  "regex",
@@ -1805,16 +1774,16 @@ dependencies = [
  "bytes",
  "chroma-config",
  "chroma-error",
+ "chroma-tracing",
  "futures",
  "object_store",
- "parking_lot",
+ "opentelemetry",
  "rand 0.8.5",
  "rand_xorshift",
  "serde",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
- "tokio-util",
  "tracing",
 ]
 
@@ -1832,9 +1801,6 @@ dependencies = [
  "chrono",
  "derivative",
  "futures",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
  "parking_lot",
  "prost 0.13.5",
  "sea-query",
@@ -1844,12 +1810,9 @@ dependencies = [
  "sqlx",
  "thiserror 1.0.69",
  "tokio",
- "tokio-util",
  "tonic",
- "tower 0.5.2",
+ "tower 0.4.13",
  "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
  "uuid",
 ]
 
@@ -1885,9 +1848,8 @@ dependencies = [
  "opentelemetry_sdk",
  "serde",
  "serde_json",
- "tokio",
  "tonic",
- "tower 0.5.2",
+ "tower 0.4.13",
  "tracing",
  "tracing-opentelemetry",
  "tracing-subscriber",
@@ -1899,7 +1861,6 @@ name = "chroma-types"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "chroma-config",
  "chroma-error",
  "proptest",
  "proptest-derive 0.5.1",
@@ -1949,7 +1910,6 @@ dependencies = [
 name = "chromadb_rust_bindings"
 version = "0.1.0"
 dependencies = [
- "async-trait",
  "chroma-cache",
  "chroma-cli",
  "chroma-config",
@@ -1961,10 +1921,7 @@ dependencies = [
  "chroma-sysdb",
  "chroma-system",
  "chroma-types",
- "mdac",
- "numpy",
  "pyo3",
- "serde",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
@@ -2324,9 +2281,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-channel"
-version = "0.5.15"
+version = "0.5.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
+checksum = "ab3db02a9c5b5121e1e42fbdb1aeb65f5e02624cc58c43f2884c6ccac0b82f95"
 dependencies = [
  "crossbeam-utils",
 ]
@@ -2577,9 +2534,9 @@ dependencies = [
 
 [[package]]
 name = "deranged"
-version = "0.4.0"
+version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c9e6a11ca8224451684bc0d7d5a7adbf8f2fd6887261a1cfc3c0432f9d4068e"
+checksum = "b42b6fa04a440b495c8b04d0e71b707c585f83cb9cb28cf8cd0d976c315e31b4"
 dependencies = [
  "powerfmt",
  "serde",
@@ -2959,6 +2916,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
+name = "fixedbitset"
+version = "0.5.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d674e81391d1e1ab681a28d99df07927c6d4aa5b027d7da16ba32d1d21ecd99"
+
+[[package]]
 name = "flatbuffers"
 version = "24.3.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3298,25 +3261,25 @@ name = "garbage_collector"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "base64 0.22.1",
  "chroma-blockstore",
  "chroma-cache",
  "chroma-config",
  "chroma-error",
  "chroma-index",
  "chroma-memberlist",
- "chroma-segment",
  "chroma-storage",
  "chroma-sysdb",
  "chroma-system",
  "chroma-tracing",
  "chroma-types",
  "chrono",
- "clap",
  "figment",
  "futures",
  "humantime",
  "itertools 0.13.0",
  "opentelemetry",
+ "petgraph 0.8.1",
  "proptest",
  "proptest-derive 0.3.0",
  "proptest-state-machine",
@@ -3329,7 +3292,9 @@ dependencies = [
  "tokio",
  "tokio-test",
  "tonic",
+ "tonic-health",
  "tracing",
+ "tracing-subscriber",
  "tracing-test",
  "uuid",
 ]
@@ -3681,12 +3646,12 @@ dependencies = [
 
 [[package]]
 name = "http-body-util"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "793429d76616a256bcb62c2a2ec2bed781c8307e797e2598c50010f2bee2544f"
+checksum = "b021d93e26becf5dc7e1b75b1bed1fd93124b374ceb73f43d4d4eafec896a64a"
 dependencies = [
  "bytes",
- "futures-util",
+ "futures-core",
  "http 1.1.0",
  "http-body 1.0.1",
  "pin-project-lite",
@@ -4507,7 +4472,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc2f4eb4bc735547cfed7c0a4922cbd04a4655978c09b54f1f7b228750664c34"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -5145,21 +5110,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
-name = "numpy"
-version = "0.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b94caae805f998a07d33af06e6a3891e38556051b8045c615470a71590e13e78"
-dependencies = [
- "libc",
- "ndarray",
- "num-complex",
- "num-integer",
- "num-traits",
- "pyo3",
- "rustc-hash 2.0.0",
-]
-
-[[package]]
 name = "objc-sys"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5320,9 +5270,9 @@ checksum = "0ab1bc2a289d34bd04a330323ac98a1b4bc82c9d9fcb1e66b63caa84da26b575"
 
 [[package]]
 name = "openssl"
-version = "0.10.72"
+version = "0.10.66"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fedfea7d58a1f73118430a55da6a286e7b044961736ce96a16a17068ea25e5da"
+checksum = "9529f4786b70a3e8c61e11179af17ab6188ad8d0ded78c5529441ed39d4bd9c1"
 dependencies = [
  "bitflags 2.9.0",
  "cfg-if",
@@ -5352,9 +5302,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.108"
+version = "0.9.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e145e1651e858e820e4860f7b9c5e169bc1d8ce1c86043be79fa7b7634821847"
+checksum = "7f9e8deee91df40a943c71b917e5874b951d32a802526c85721ce3b776c929d6"
 dependencies = [
  "cc",
  "libc",
@@ -5386,7 +5336,6 @@ dependencies = [
  "bytes",
  "http 1.1.0",
  "opentelemetry",
- "reqwest 0.12.9",
 ]
 
 [[package]]
@@ -5688,8 +5637,20 @@ version = "0.6.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e1d3afd2628e69da2be385eb6f2fd57c8ac7977ceeff6dc166ff1657b0e386a9"
 dependencies = [
- "fixedbitset",
+ "fixedbitset 0.4.2",
  "indexmap 2.6.0",
+]
+
+[[package]]
+name = "petgraph"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a98c6720655620a521dcc722d0ad66cd8afd5d86e34a89ef691c50b7b24de06"
+dependencies = [
+ "fixedbitset 0.5.7",
+ "hashbrown 0.15.2",
+ "indexmap 2.6.0",
+ "serde",
 ]
 
 [[package]]
@@ -5978,7 +5939,7 @@ dependencies = [
  "log",
  "multimap",
  "once_cell",
- "petgraph",
+ "petgraph 0.6.4",
  "prettyplease",
  "prost 0.12.3",
  "prost-types 0.12.3",
@@ -6034,9 +5995,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3"
-version = "0.23.5"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7778bffd85cf38175ac1f545509665d0b9b92a198ca7941f131f85f7a4f9a872"
+checksum = "e5203598f366b11a02b13aa20cab591229ff0a89fd121a308a5df751d5fc9219"
 dependencies = [
  "cfg-if",
  "indoc",
@@ -6052,9 +6013,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.23.5"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94f6cbe86ef3bf18998d9df6e0f3fc1050a8c5efa409bf712e661a4366e010fb"
+checksum = "99636d423fa2ca130fa5acde3059308006d46f98caac629418e53f7ebb1e9999"
 dependencies = [
  "once_cell",
  "target-lexicon",
@@ -6062,9 +6023,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-ffi"
-version = "0.23.5"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e9f1b4c431c0bb1c8fb0a338709859eed0d030ff6daa34368d3b152a63dfdd8d"
+checksum = "78f9cf92ba9c409279bc3305b5409d90db2d2c22392d443a87df3a1adad59e33"
 dependencies = [
  "libc",
  "pyo3-build-config",
@@ -6072,9 +6033,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros"
-version = "0.23.5"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fbc2201328f63c4710f68abdf653c89d8dbc2858b88c5d88b0ff38a75288a9da"
+checksum = "0b999cb1a6ce21f9a6b147dcf1be9ffedf02e0043aec74dc390f3007047cecd9"
 dependencies = [
  "proc-macro2 1.0.92",
  "pyo3-macros-backend",
@@ -6084,9 +6045,9 @@ dependencies = [
 
 [[package]]
 name = "pyo3-macros-backend"
-version = "0.23.5"
+version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca6726ad0f3da9c9de093d6f116a93c1a38e417ed73bf138472cf4064f72028"
+checksum = "822ece1c7e1012745607d5cf0bcb2874769f0f7cb34c4cde03b9358eb9ef911a"
 dependencies = [
  "heck 0.5.0",
  "proc-macro2 1.0.92",
@@ -6471,7 +6432,6 @@ checksum = "a77c62af46e79de0a562e1a9849205ffcb7fc1238876e9bd743357570e04046f"
 dependencies = [
  "base64 0.22.1",
  "bytes",
- "futures-channel",
  "futures-core",
  "futures-util",
  "h2 0.4.7",
@@ -6522,14 +6482,15 @@ dependencies = [
 
 [[package]]
 name = "ring"
-version = "0.17.14"
+version = "0.17.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4689e6c2294d81e88dc6261c768b63bc4fcdb852be6d1352498b114f61383b7"
+checksum = "c17fa4cb658e3583423e915b9f3acc01cceaee1860e33d59ebae66adc3a2dc0d"
 dependencies = [
  "cc",
  "cfg-if",
  "getrandom 0.2.15",
  "libc",
+ "spin",
  "untrusted",
  "windows-sys 0.52.0",
 ]
@@ -7307,7 +7268,7 @@ version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "03c3c6b7927ffe7ecaa769ee0e3994da3b8cafc8f444578982c83ecb161af917"
 dependencies = [
- "heck 0.4.1",
+ "heck 0.5.0",
  "proc-macro2 1.0.92",
  "quote 1.0.37",
  "syn 2.0.101",
@@ -7538,6 +7499,7 @@ dependencies = [
  "libsqlite3-sys",
  "log",
  "percent-encoding",
+ "regex",
  "serde",
  "serde_urlencoded",
  "sqlx-core",
@@ -7865,9 +7827,9 @@ checksum = "55937e1799185b12863d447f42597ed69d9928686b8d88a1df17376a097d8369"
 
 [[package]]
 name = "target-lexicon"
-version = "0.12.16"
+version = "0.13.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61c41af27dd6d1e27b1b16b489db798443478cef1f06a660c96db617ba5de3b1"
+checksum = "e502f78cdbb8ba4718f566c418c52bc729126ffd16baee5baa718cf25dd5a69a"
 
 [[package]]
 name = "tempfile"
@@ -7987,9 +7949,9 @@ dependencies = [
 
 [[package]]
 name = "time"
-version = "0.3.41"
+version = "0.3.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8a7619e19bc266e0f9c5e6686659d394bc57973859340060a69221e57dbc0c40"
+checksum = "5dfd88e563464686c916c7e46e623e520ddc6d79fa6641390f2e3fa86e83e885"
 dependencies = [
  "deranged",
  "itoa",
@@ -8002,15 +7964,15 @@ dependencies = [
 
 [[package]]
 name = "time-core"
-version = "0.1.4"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c9e9a38711f559d9e3ce1cdb06dd7c5b8ea546bc90052da6d06bb76da74bb07c"
+checksum = "ef927ca75afb808a4d64dd374f00a2adf8d0fcff8e7b184af886c3c87ec4a3f3"
 
 [[package]]
 name = "time-macros"
-version = "0.2.22"
+version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3526739392ec93fd8b359c8e98514cb3e8e021beb4e5f597b00a0221f8ed8a49"
+checksum = "3f252a68540fde3a3877aeea552b832b40ab9a69e318efd078774a01ddee1ccf"
 dependencies = [
  "num-conv",
  "time-core",
@@ -8062,9 +8024,9 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 
 [[package]]
 name = "tokio"
-version = "1.45.0"
+version = "1.41.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2513ca694ef9ede0fb23fe71a4ee4107cb102b9dc1930f6d0fd77aae068ae165"
+checksum = "22cfb5bee7a6a52939ca9224d6ac897bb669134078daa8735560897f69de4d33"
 dependencies = [
  "backtrace",
  "bytes",
@@ -8090,9 +8052,9 @@ dependencies = [
 
 [[package]]
 name = "tokio-macros"
-version = "2.5.0"
+version = "2.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e06d43f1345a3bcd39f6a56dbb7dcab2ba47e68e8ac134855e7e2bdbaf8cab8"
+checksum = "693d596312e88961bc67d7f1f97af8a70227d9f90c31bba5806eec004978d752"
 dependencies = [
  "proc-macro2 1.0.92",
  "quote 1.0.37",
@@ -8727,21 +8689,21 @@ dependencies = [
 
 [[package]]
 name = "uuid"
-version = "1.16.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "458f7a779bf54acc9f347480ac654f68407d3aab21269a6e3c9f922acd9e2da9"
+checksum = "f8c5f0a0af699448548ad1a2fbf920fb4bee257eae39953ba95cb84891a0446a"
 dependencies = [
- "getrandom 0.3.1",
- "rand 0.9.0",
+ "getrandom 0.2.15",
+ "rand 0.8.5",
  "serde",
  "uuid-macro-internal",
 ]
 
 [[package]]
 name = "uuid-macro-internal"
-version = "1.16.0"
+version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "72dcd78c4f979627a754f5522cea6e6a25e55139056535fe6e69c506cd64a862"
+checksum = "6b91f57fe13a38d0ce9e28a03463d8d3c2468ed03d75375110ec71d93b449a08"
 dependencies = [
  "proc-macro2 1.0.92",
  "quote 1.0.37",
@@ -8822,9 +8784,9 @@ dependencies = [
  "chroma-error",
  "chroma-storage",
  "futures",
- "futures-core",
  "guacamole",
  "parquet",
+ "proptest",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -8832,7 +8794,6 @@ dependencies = [
  "thiserror 1.0.69",
  "tokio",
  "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -9406,9 +9367,6 @@ dependencies = [
  "futures",
  "indicatif",
  "num_cpus",
- "opentelemetry",
- "opentelemetry-otlp",
- "opentelemetry_sdk",
  "parking_lot",
  "proptest",
  "proptest-state-machine",
@@ -9432,8 +9390,6 @@ dependencies = [
  "tonic",
  "tonic-health",
  "tracing",
- "tracing-opentelemetry",
- "tracing-subscriber",
  "uuid",
 ]
 

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chroma_error::{ChromaError, ErrorCodes};
-use chroma_storage::Storage;
+use chroma_storage::{DeleteOptions, Storage};
 use chroma_sysdb::SysDb;
 use chroma_system::{Operator, OperatorType};
 use chroma_types::chroma_proto::{CollectionVersionFile, VersionListForCollection};
@@ -38,6 +38,8 @@ pub struct DeleteVersionsAtSysDbOutput {
 
 #[derive(Error, Debug)]
 pub enum DeleteVersionsAtSysDbError {
+    #[error("Unknown error occurred when deleting versions at sysdb")]
+    UnknownError,
     #[error("Error deleting versions in sysdb: {0}")]
     SysDBError(String),
     #[error("Error deleting version file {path}: {message}")]
@@ -87,7 +89,7 @@ impl DeleteVersionsAtSysDbOperator {
             let path = file_path.clone();
             futures.push(async move {
                 storage
-                    .delete(&path)
+                    .delete(&path, DeleteOptions::default())
                     .await
                     .map_err(|e| (path, e.to_string()))
             });
@@ -157,7 +159,13 @@ impl Operator<DeleteVersionsAtSysDbInput, DeleteVersionsAtSysDbOutput>
                 .delete_collection_version(vec![input.versions_to_delete.clone()])
                 .await
             {
-                Ok(_) => {
+                Ok(results) => {
+                    for (_, was_successful) in results {
+                        if !was_successful {
+                            return Err(DeleteVersionsAtSysDbError::UnknownError);
+                        }
+                    }
+
                     tracing::info!(
                         versions = ?input.versions_to_delete.versions,
                         "Successfully deleted versions from SysDB"

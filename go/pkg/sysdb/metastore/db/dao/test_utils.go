@@ -71,7 +71,7 @@ func CleanUpTestDatabase(db *gorm.DB, tenantName string, databaseName string) er
 	collectionDb := &collectionDb{
 		db: db,
 	}
-	collections, err := collectionDb.GetCollections(nil, nil, tenantName, databaseName, nil, nil)
+	collections, err := collectionDb.GetCollections(nil, nil, tenantName, databaseName, nil, nil, false)
 	log.Info("clean up test database", zap.Int("collections", len(collections)))
 	if err != nil {
 		return err
@@ -125,7 +125,7 @@ func CleanUpTestTenant(db *gorm.DB, tenantName string) error {
 	return nil
 }
 
-func CreateTestCollection(db *gorm.DB, collectionName string, dimension int32, databaseID string) (string, error) {
+func CreateTestCollection(db *gorm.DB, collectionName string, dimension int32, databaseID string, lineageFileName *string) (string, error) {
 	log.Info("create test collection", zap.String("collectionName", collectionName), zap.Int32("dimension", dimension), zap.String("databaseID", databaseID))
 	collectionDb := &collectionDb{
 		db: db,
@@ -147,6 +147,7 @@ func CreateTestCollection(db *gorm.DB, collectionName string, dimension int32, d
 		SizeBytesPostCompaction:    uint64(500000),
 		LastCompactionTimeSecs:     uint64(1741037006),
 		Tenant:                     "test_tenant",
+		LineageFileName:            lineageFileName,
 	})
 	if err != nil {
 		return "", err
@@ -208,4 +209,9 @@ func CleanUpTestCollection(db *gorm.DB, collectionId string) error {
 	}
 
 	return nil
+}
+
+func SetTestTenantResourceName(db *gorm.DB, tenantID, resourceName string) error {
+	tenantDb := &tenantDb{db: db}
+	return tenantDb.SetTenantResourceName(tenantID, resourceName)
 }
